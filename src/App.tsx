@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Inventory from "./pages/Inventory/Inventory";
 import AddSingleAsset from "./pages/AddSingleAsset/AddSingleAsset";
+import ImportShipment from "./pages/ImportShipment/ImportShipment";
 
 function App() {
   return (
@@ -9,6 +10,7 @@ function App() {
         <Route path="/" element={<Navigate to="/inventory" replace />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/inventory/add" element={<AddSingleAsset />} />
+        <Route path="/inventory/import" element={<ImportShipment />} />
       </Routes>
     </BrowserRouter>
   );
