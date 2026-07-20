@@ -21,7 +21,9 @@ function Inventory() {
           <p className="card-text">
             Upload an invoice and create stock assets from the model and serial numbers.
           </p>
-          <button type="button">Upload Invoice</button>
+          <button type="button" onClick={() => navigate("/inventory/import")}>
+            Upload Invoice
+          </button>
         </article>
 
         <article className="inventory-card">
