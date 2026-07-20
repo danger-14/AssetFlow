@@ -5,11 +5,35 @@ import type { ShipmentDevice } from "../types/importShipment";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-const DEVICE_LINE_RE =
-  /^(?:\d+(?:[,.]\d+)\s*kg\s+)?(?:\d+\.\s*)?(?:[A-Z0-9/.-]+\s+)?(?<model>.+?)\s+SN:\s*(?<serial>[A-Z0-9]+)\b/i;
+const SERIAL_RE = /\bSN:\s*([A-Z0-9]+)\b/i;
+const DEVICE_START_RE =
+  /\b(MacBook(?: Pro| Air)?|Mac mini|Mac Mini|iPhone|iPad|Pixel|Google Pixel|Apple Watch)\b/i;
 
 function normalizeSerial(serial: string): string {
   return serial.trim().replace(/\s+/g, "").replace(/^S/i, "");
+}
+
+function normalizeModel(model: string): string {
+  return model
+    .replace(/\s+/g, " ")
+    .replace(/\s+(?:\d+-)?core CPU.*$/i, "")
+    .replace(/\s+CTO.*$/i, "")
+    .replace(/\s+Nano-texture.*$/i, "")
+    .replace(/\s+Space Black.*$/i, "")
+    .trim();
+}
+
+function extractModelFromLine(line: string): string | null {
+  const serialMatch = line.match(SERIAL_RE);
+  if (!serialMatch || serialMatch.index == null) return null;
+
+  const beforeSerial = line.slice(0, serialMatch.index).trim();
+  const startMatch = beforeSerial.match(DEVICE_START_RE);
+
+  if (!startMatch || startMatch.index == null) return null;
+
+  const rawModel = beforeSerial.slice(startMatch.index).trim();
+  return normalizeModel(rawModel) || null;
 }
 
 export async function extractPdfText(file: File): Promise<string> {
@@ -42,11 +66,11 @@ export function parseShipmentDevicesFromText(text: string): ShipmentDevice[] {
   const devices: ShipmentDevice[] = [];
 
   lines.forEach((line, index) => {
-    const match = line.match(DEVICE_LINE_RE);
-    if (!match?.groups) return;
+    const serialMatch = line.match(SERIAL_RE);
+    if (!serialMatch) return;
 
-    const model = match.groups.model.trim();
-    const serial = normalizeSerial(match.groups.serial);
+    const model = extractModelFromLine(line);
+    const serial = normalizeSerial(serialMatch[1]);
 
     if (!model || !serial) return;
 
