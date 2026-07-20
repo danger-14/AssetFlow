@@ -1,4 +1,5 @@
 import "./AddSingleAsset.css";
+import { deviceCatalog } from "../../data/deviceCatalog";
 
 export default function AddSingleAsset() {
   return (
@@ -16,6 +17,11 @@ export default function AddSingleAsset() {
             <option value="" disabled>
               Select Product
             </option>
+            {deviceCatalog.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.product}
+              </option>
+            ))}
           </select>
         </div>
 
