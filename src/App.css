@@ -74,6 +74,34 @@ h1 {
   line-height: 1.6;
 }
 
+.section-header {
+  margin-bottom: 18px;
+}
+
+.two-column {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.subcard {
+  background: #11151c;
+  border: 1px solid #2a2f3a;
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.subcard h3 {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+}
+
+.subcard p {
+  margin: 0 0 16px;
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+
 .button-row {
   display: flex;
   flex-wrap: wrap;
@@ -105,6 +133,10 @@ button:hover {
   }
 
   .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .two-column {
     grid-template-columns: 1fr;
   }
 
