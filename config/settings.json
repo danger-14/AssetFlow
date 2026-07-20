@@ -1,1 +1,12 @@
-
+{
+  "version": "1.0",
+  "freshservice": {
+    "baseUrl": "",
+    "apiKey": ""
+  },
+  "defaults": {
+    "location": "Finland",
+    "department": "All Wolt",
+    "managedByGroup": "IT Asset"
+  }
+}
