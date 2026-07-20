@@ -1,42 +1,38 @@
 import "./Inventory.css";
 
-export default function Inventory() {
+function Inventory() {
   return (
-    <div className="inventory-page">
-      <div className="inventory-header">
-        <div>
-          <p className="page-tag">Inventory</p>
-          <h1>Inventory Management</h1>
-          <p className="page-description">
-            Create new assets by importing a shipment invoice or by adding a
-            single device manually.
-          </p>
-        </div>
-      </div>
+    <main className="inventory-page">
+      <section className="inventory-hero">
+        <p className="eyebrow">AssetFlow</p>
+        <h1>Inventory</h1>
+        <p className="subtitle">
+          Create assets from a shipment invoice or add a single device manually.
+        </p>
+      </section>
 
-      <div className="inventory-grid">
-        <div className="inventory-card">
+      <section className="inventory-grid">
+        <article className="inventory-card">
+          <p className="card-label">Shipment</p>
           <h2>Import Shipment</h2>
-
-          <p>
-            Import multiple devices from a supplier invoice. AssetFlow will
-            extract the model and serial numbers, validate duplicates and create
-            Stock assets inside Freshservice.
+          <p className="card-text">
+            Upload an invoice and create stock assets from the model and serial
+            numbers.
           </p>
+          <button type="button">Upload Invoice</button>
+        </article>
 
-          <button>Upload Invoice</button>
-        </div>
-
-        <div className="inventory-card">
+        <article className="inventory-card">
+          <p className="card-label">Manual</p>
           <h2>Add Single Asset</h2>
-
-          <p>
-            Create a single asset manually when an invoice is unavailable.
+          <p className="card-text">
+            Create one asset manually when there is no invoice available.
           </p>
-
-          <button>Add Asset</button>
-        </div>
-      </div>
-    </div>
+          <button type="button">Add Asset</button>
+        </article>
+      </section>
+    </main>
   );
 }
+
+export default Inventory;
