@@ -36,6 +36,17 @@ function Inventory() {
             Add Asset
           </button>
         </article>
+
+        <article className="inventory-card">
+          <p className="card-label">Deployment</p>
+          <h2>Assign Device</h2>
+          <p className="card-text">
+            Assign an existing stock asset to a user and mark it as in use.
+          </p>
+          <button type="button" onClick={() => navigate("/assign")}>
+            Assign Device
+          </button>
+        </article>
       </section>
     </main>
   );
