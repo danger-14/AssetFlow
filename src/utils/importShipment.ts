@@ -5,9 +5,8 @@ import type { ShipmentDevice } from "../types/importShipment";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-const SERIAL_RE = /\bSN:\s*([A-Z0-9]+)\b/i;
-const DEVICE_START_RE =
-  /\b(MacBook(?: Pro| Air)?|Mac mini|Mac Mini|iPhone|iPad|Pixel|Google Pixel|Apple Watch)\b/i;
+const DEVICE_ROW_RE =
+  /(?:^|\s)(?<rowNumber>\d+\.)\s*(?<itemCode>[A-Z0-9/.-]+)\s+(?<rawModel>.+?)\s+SN:\s*(?<serial>[A-Z0-9]+)(?=\s+\d+\.\s+[A-Z0-9/.-]+\s+|$)/gi;
 
 function normalizeSerial(serial: string): string {
   return serial.trim().replace(/\s+/g, "").replace(/^S/i, "");
@@ -16,24 +15,17 @@ function normalizeSerial(serial: string): string {
 function normalizeModel(model: string): string {
   return model
     .replace(/\s+/g, " ")
-    .replace(/\s+(?:\d+-)?core CPU.*$/i, "")
+    .replace(/\s+\d+[,.]\d+\s*kg.*$/i, "")
+    .replace(/\s+(?:\d+[- ]?Core CPU.*)$/i, "")
     .replace(/\s+CTO.*$/i, "")
     .replace(/\s+Nano-texture.*$/i, "")
     .replace(/\s+Space Black.*$/i, "")
+    .replace(/\s+Midnight.*$/i, "")
+    .replace(/\s+Silver.*$/i, "")
+    .replace(/\s+Starlight.*$/i, "")
+    .replace(/\s+Black.*$/i, "")
+    .replace(/\s+Blue.*$/i, "")
     .trim();
-}
-
-function extractModelFromLine(line: string): string | null {
-  const serialMatch = line.match(SERIAL_RE);
-  if (!serialMatch || serialMatch.index == null) return null;
-
-  const beforeSerial = line.slice(0, serialMatch.index).trim();
-  const startMatch = beforeSerial.match(DEVICE_START_RE);
-
-  if (!startMatch || startMatch.index == null) return null;
-
-  const rawModel = beforeSerial.slice(startMatch.index).trim();
-  return normalizeModel(rawModel) || null;
 }
 
 export async function extractPdfText(file: File): Promise<string> {
@@ -58,30 +50,23 @@ export async function extractPdfText(file: File): Promise<string> {
 
 export function parseShipmentDevicesFromText(text: string): ShipmentDevice[] {
   const normalizedText = text.replace(/\u00A0/g, " ");
-  const lines = normalizedText
-    .split(/\r?\n/)
-    .map((line) => line.replace(/\s+/g, " ").trim())
-    .filter(Boolean);
-
   const devices: ShipmentDevice[] = [];
 
-  lines.forEach((line, index) => {
-    const serialMatch = line.match(SERIAL_RE);
-    if (!serialMatch) return;
+  for (const match of normalizedText.matchAll(DEVICE_ROW_RE)) {
+    const rawModel = match.groups?.rawModel ?? "";
+    const serial = normalizeSerial(match.groups?.serial ?? "");
+    const model = normalizeModel(rawModel);
 
-    const model = extractModelFromLine(line);
-    const serial = normalizeSerial(serialMatch[1]);
-
-    if (!model || !serial) return;
+    if (!model || !serial) continue;
 
     devices.push({
-      id: `${serial}-${index}`,
+      id: `${serial}-${devices.length}`,
       model,
       serial,
       selected: true,
       source: "pdf",
     });
-  });
+  }
 
   return devices;
 }
