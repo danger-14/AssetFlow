@@ -34,7 +34,7 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-  max-width: 900px;
+  max-width: 980px;
   padding: 24px;
   border: 1px solid #2a2f3a;
   border-radius: 20px;
@@ -103,31 +103,80 @@ button:hover:not(:disabled) {
 .preview {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   padding-top: 8px;
   border-top: 1px solid #2a2f3a;
 }
 
-.preview h2 {
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.preview-header h2 {
   margin: 0;
   font-size: 1.2rem;
 }
 
-.preview pre {
-  margin: 0;
-  padding: 16px;
-  border-radius: 14px;
-  background: #0f1115;
+.table-wrap {
+  overflow-x: auto;
   border: 1px solid #2f3743;
+  border-radius: 16px;
+  background: #0f1115;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead th {
+  text-align: left;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  padding: 14px 16px;
+  border-bottom: 1px solid #2f3743;
+}
+
+tbody td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #1f2430;
+  vertical-align: top;
   color: #e5e7eb;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 420px;
-  overflow: auto;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+tbody td:first-child {
+  width: 48px;
+}
+
+tbody td:nth-child(2) {
+  min-width: 320px;
+}
+
+tbody td:nth-child(3) {
+  white-space: nowrap;
+}
+
+.preview-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 @media (max-width: 800px) {
   .import-page {
     padding: 20px;
+  }
+
+  .preview-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
