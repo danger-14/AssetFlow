@@ -1,9 +1,38 @@
 import "./App.css";
 
+type FeatureCardProps = {
+  title: string;
+  description: string;
+  primaryLabel: string;
+  secondaryLabel?: string;
+};
+
+function FeatureCard({
+  title,
+  description,
+  primaryLabel,
+  secondaryLabel,
+}: FeatureCardProps) {
+  return (
+    <section className="card">
+      <p className="card-label">{title}</p>
+      <p className="card-description">{description}</p>
+      <div className="button-row">
+        <button type="button">{primaryLabel}</button>
+        {secondaryLabel ? (
+          <button type="button" className="secondary">
+            {secondaryLabel}
+          </button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function App() {
   return (
     <div className="app-shell">
-      <header className="app-header">
+      <header className="hero">
         <div>
           <p className="eyebrow">AssetFlow</p>
           <h1>Freshservice Asset Management</h1>
@@ -13,56 +42,51 @@ function App() {
         </div>
       </header>
 
-      <main className="grid">
-        <section className="card full-width">
+      <main className="content">
+        <section className="card card-wide">
           <p className="card-label">Inventory</p>
-          <div className="section-header">
-            <div>
-              <h2>Create assets</h2>
-              <p className="card-text">
-                Use an invoice for batch imports, or add a single device manually when there is no invoice.
-              </p>
-            </div>
-          </div>
+          <h2>Create assets</h2>
+          <p className="card-description">
+            Import shipment invoices in bulk or add a single device manually when there is no invoice.
+          </p>
 
-          <div className="two-column">
-            <div className="subcard">
-              <h3>Import Shipment</h3>
-              <p>
-                Upload an invoice and create multiple stock assets from the model and serial numbers.
-              </p>
-              <button>Upload Invoice</button>
-            </div>
+          <div className="grid-2">
+            <FeatureCard
+              title="Import Shipment"
+              description="Upload an invoice and create multiple stock assets from model and serial numbers."
+              primaryLabel="Upload Invoice"
+            />
 
-            <div className="subcard">
-              <h3>Add Single Asset</h3>
-              <p>
-                Enter a model and serial number manually for devices without an invoice.
-              </p>
-              <button className="secondary">Add Manually</button>
-            </div>
+            <FeatureCard
+              title="Add Single Asset"
+              description="Enter a model and serial number manually for devices without an invoice."
+              primaryLabel="Add Manually"
+              secondaryLabel="Scan / OCR"
+            />
           </div>
         </section>
 
         <section className="card">
           <p className="card-label">Deployment</p>
-          <h2>Assign device to a user</h2>
-          <p className="card-text">
-            Update an existing stock device and mark it as in use.
+          <h2>Assign device</h2>
+          <p className="card-description">
+            Update an existing stock device, assign a user, and mark it as in use.
           </p>
           <div className="button-row">
-            <button>Assign Device</button>
+            <button type="button">Assign Device</button>
           </div>
         </section>
 
         <section className="card">
           <p className="card-label">Settings</p>
-          <h2>Device catalog and defaults</h2>
-          <p className="card-text">
-            Manage device models, default costs, storage, location, and Freshservice rules.
+          <h2>Catalog and defaults</h2>
+          <p className="card-description">
+            Manage device models, cost, storage, location, and Freshservice rules.
           </p>
           <div className="button-row">
-            <button className="secondary">Open Settings</button>
+            <button type="button" className="secondary">
+              Open Settings
+            </button>
           </div>
         </section>
       </main>
