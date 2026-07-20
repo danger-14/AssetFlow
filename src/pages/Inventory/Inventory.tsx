@@ -1,6 +1,9 @@
+import { useNavigate } from "react-router-dom";
 import "./Inventory.css";
 
 function Inventory() {
+  const navigate = useNavigate();
+
   return (
     <main className="inventory-page">
       <section className="inventory-hero">
@@ -28,7 +31,9 @@ function Inventory() {
           <p className="card-text">
             Create one asset manually when there is no invoice available.
           </p>
-          <button type="button">Add Asset</button>
+          <button type="button" onClick={() => navigate("/inventory/add")}>
+            Add Asset
+          </button>
         </article>
       </section>
     </main>
