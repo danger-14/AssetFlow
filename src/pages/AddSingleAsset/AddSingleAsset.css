@@ -1,52 +1,82 @@
-.single-asset-page{
-    display:flex;
-    flex-direction:column;
-    gap:24px;
+.single-page{
+
+    padding:32px;
+
+    color:white;
+
 }
 
-.page-header h1{
-    margin:0;
+.page-header{
+
+    margin-bottom:32px;
+
 }
 
-.page-header p{
-    color:#9ca3af;
+.page-tag{
+
+    color:#7c93ff;
+
+    font-size:13px;
+
+    font-weight:600;
+
+    text-transform:uppercase;
+
 }
 
 .asset-form{
-    background:#171a21;
-    border-radius:16px;
-    padding:24px;
 
     display:flex;
+
     flex-direction:column;
-    gap:20px;
+
+    gap:24px;
+
+    max-width:700px;
+
 }
 
 .form-group{
+
     display:flex;
+
     flex-direction:column;
+
     gap:8px;
+
 }
 
-.form-group label{
-    font-weight:600;
-}
+input,
+select{
 
-.form-group input,
-.form-group select{
+    padding:14px;
 
-    padding:12px;
     border-radius:10px;
-    border:1px solid #2b313c;
-    background:#0f1115;
+
+    border:1px solid #2f3743;
+
+    background:#12161d;
+
     color:white;
+
 }
 
-.form-actions{
+.scan-buttons{
+
     display:flex;
+
     gap:12px;
+
 }
 
-.form-actions button{
-    cursor:pointer;
+.scan-buttons button{
+
+    flex:1;
+
+}
+
+.create-button{
+
+    margin-top:16px;
+
 }
