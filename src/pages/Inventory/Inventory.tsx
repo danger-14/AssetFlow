@@ -19,8 +19,7 @@ function Inventory() {
           <p className="card-label">Shipment</p>
           <h2>Import Shipment</h2>
           <p className="card-text">
-            Upload an invoice and create stock assets from the model and serial
-            numbers.
+            Upload an invoice and create stock assets from the model and serial numbers.
           </p>
           <button type="button">Upload Invoice</button>
         </article>
