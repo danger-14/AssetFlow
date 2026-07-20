@@ -1,18 +1,18 @@
 import "./App.css";
 
-type FeatureCardProps = {
+type ActionCardProps = {
   title: string;
   description: string;
   primaryLabel: string;
   secondaryLabel?: string;
 };
 
-function FeatureCard({
+function ActionCard({
   title,
   description,
   primaryLabel,
   secondaryLabel,
-}: FeatureCardProps) {
+}: ActionCardProps) {
   return (
     <section className="card">
       <p className="card-label">{title}</p>
@@ -51,13 +51,13 @@ function App() {
           </p>
 
           <div className="grid-2">
-            <FeatureCard
+            <ActionCard
               title="Import Shipment"
               description="Upload an invoice and create multiple stock assets from model and serial numbers."
               primaryLabel="Upload Invoice"
             />
 
-            <FeatureCard
+            <ActionCard
               title="Add Single Asset"
               description="Enter a model and serial number manually for devices without an invoice."
               primaryLabel="Add Manually"
