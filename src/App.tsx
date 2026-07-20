@@ -14,15 +14,33 @@ function App() {
       </header>
 
       <main className="grid">
-        <section className="card">
+        <section className="card full-width">
           <p className="card-label">Inventory</p>
-          <h2>Manage incoming devices</h2>
-          <p className="card-text">
-            Add shipment items or create a single asset manually when there is no invoice.
-          </p>
-          <div className="button-row">
-            <button>Import Shipment</button>
-            <button className="secondary">Add Single Asset</button>
+          <div className="section-header">
+            <div>
+              <h2>Create assets</h2>
+              <p className="card-text">
+                Use an invoice for batch imports, or add a single device manually when there is no invoice.
+              </p>
+            </div>
+          </div>
+
+          <div className="two-column">
+            <div className="subcard">
+              <h3>Import Shipment</h3>
+              <p>
+                Upload an invoice and create multiple stock assets from the model and serial numbers.
+              </p>
+              <button>Upload Invoice</button>
+            </div>
+
+            <div className="subcard">
+              <h3>Add Single Asset</h3>
+              <p>
+                Enter a model and serial number manually for devices without an invoice.
+              </p>
+              <button className="secondary">Add Manually</button>
+            </div>
           </div>
         </section>
 
@@ -37,7 +55,7 @@ function App() {
           </div>
         </section>
 
-        <section className="card full-width">
+        <section className="card">
           <p className="card-label">Settings</p>
           <h2>Device catalog and defaults</h2>
           <p className="card-text">
