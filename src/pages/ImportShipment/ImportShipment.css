@@ -60,6 +60,12 @@ input {
   color: white;
 }
 
+.helper-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #9ca3af;
+}
+
 .button-row {
   display: flex;
   gap: 12px;
@@ -82,4 +88,10 @@ button.secondary {
 
 button:hover {
   opacity: 0.95;
+}
+
+@media (max-width: 800px) {
+  .import-page {
+    padding: 20px;
+  }
 }
