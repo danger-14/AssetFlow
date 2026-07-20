@@ -7,37 +7,34 @@
   padding: 32px;
   background: #0f1115;
   color: #f3f4f6;
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-.app-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+.hero {
   margin-bottom: 32px;
 }
 
 .eyebrow {
   margin: 0 0 8px;
-  font-size: 0.875rem;
-  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #9ca3af;
 }
 
 h1 {
   margin: 0;
-  font-size: 2rem;
-  line-height: 1.1;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.05;
 }
 
 .subtitle {
   margin: 12px 0 0;
+  max-width: 620px;
   color: #cbd5e1;
-  max-width: 560px;
+  line-height: 1.6;
 }
 
-.grid {
+.content {
   display: grid;
   gap: 20px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -51,7 +48,7 @@ h1 {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
 }
 
-.full-width {
+.card-wide {
   grid-column: 1 / -1;
 }
 
@@ -68,38 +65,16 @@ h1 {
   font-size: 1.4rem;
 }
 
-.card-text {
+.card-description {
   margin: 12px 0 20px;
   color: #cbd5e1;
   line-height: 1.6;
 }
 
-.section-header {
-  margin-bottom: 18px;
-}
-
-.two-column {
+.grid-2 {
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.subcard {
-  background: #11151c;
-  border: 1px solid #2a2f3a;
-  border-radius: 16px;
-  padding: 20px;
-}
-
-.subcard h3 {
-  margin: 0 0 10px;
-  font-size: 1.1rem;
-}
-
-.subcard p {
-  margin: 0 0 16px;
-  color: #cbd5e1;
-  line-height: 1.6;
 }
 
 .button-row {
@@ -132,15 +107,11 @@ button:hover {
     padding: 20px;
   }
 
-  .grid {
+  .content {
     grid-template-columns: 1fr;
   }
 
-  .two-column {
+  .grid-2 {
     grid-template-columns: 1fr;
-  }
-
-  .app-header {
-    margin-bottom: 24px;
   }
 }
