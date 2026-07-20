@@ -1,38 +1,17 @@
 import { useMemo, useState } from "react";
-import * as pdfjsLib from "pdfjs-dist";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import {
+  createManualShipmentDevice,
+  extractPdfText,
+  parseShipmentDevicesFromText,
+} from "../../utils/importShipment";
+import type { ShipmentDevice } from "../../types/importShipment";
 import "./ImportShipment.css";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-
-type ParsedPdfResult = {
-  fileName: string;
-  fullText: string;
-};
-
-async function extractPdfText(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-  const pageTexts: string[] = [];
-
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-    const page = await pdf.getPage(pageNumber);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .map((item) => ("str" in item ? item.str : ""))
-      .join(" ");
-    pageTexts.push(pageText);
-  }
-
-  return pageTexts.join("\n\n");
-}
 
 export default function ImportShipment() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [manualSerial, setManualSerial] = useState("");
   const [manualModel, setManualModel] = useState("");
-  const [parsedResult, setParsedResult] = useState<ParsedPdfResult | null>(null);
+  const [devices, setDevices] = useState<ShipmentDevice[]>([]);
   const [isReading, setIsReading] = useState(false);
   const [error, setError] = useState("");
 
@@ -41,27 +20,57 @@ export default function ImportShipment() {
     return selectedFile.name;
   }, [selectedFile]);
 
+  const selectedCount = useMemo(
+    () => devices.filter((device) => device.selected).length,
+    [devices]
+  );
+
+  const toggleDevice = (id: string) => {
+    setDevices((current) =>
+      current.map((device) =>
+        device.id === id ? { ...device, selected: !device.selected } : device
+      )
+    );
+  };
+
   const handlePreview = async () => {
     setError("");
-    setParsedResult(null);
-
-    if (!selectedFile) {
-      setError("Please select a PDF invoice first.");
-      return;
-    }
+    setDevices([]);
 
     try {
       setIsReading(true);
-      const fullText = await extractPdfText(selectedFile);
-      setParsedResult({
-        fileName: selectedFile.name,
-        fullText,
-      });
+
+      const nextDevices: ShipmentDevice[] = [];
+
+      if (selectedFile) {
+        const pdfText = await extractPdfText(selectedFile);
+        nextDevices.push(...parseShipmentDevicesFromText(pdfText));
+      }
+
+      const manualDevice = createManualShipmentDevice(manualModel, manualSerial);
+      if (manualDevice) {
+        nextDevices.push(manualDevice);
+      }
+
+      if (nextDevices.length === 0) {
+        setError("Upload a PDF or enter a manual model and serial number.");
+        return;
+      }
+
+      setDevices(nextDevices);
     } catch {
       setError("Could not read the PDF. Please try another file.");
     } finally {
       setIsReading(false);
     }
+  };
+
+  const handleClear = () => {
+    setSelectedFile(null);
+    setManualSerial("");
+    setManualModel("");
+    setDevices([]);
+    setError("");
   };
 
   return (
@@ -112,18 +121,71 @@ export default function ImportShipment() {
           <button type="button" onClick={handlePreview} disabled={isReading}>
             {isReading ? "Reading PDF..." : "Preview Import"}
           </button>
-          <button type="button" className="secondary">
+          <button type="button" className="secondary" onClick={handleClear}>
             Clear
           </button>
         </div>
 
         {error ? <p className="error-text">{error}</p> : null}
 
-        {parsedResult ? (
+        {devices.length > 0 ? (
           <section className="preview">
-            <h2>Extracted PDF Text</h2>
-            <p className="helper-text">{parsedResult.fileName}</p>
-            <pre>{parsedResult.fullText || "No text found in PDF."}</pre>
+            <div className="preview-header">
+              <div>
+                <h2>Extracted Devices</h2>
+                <p className="helper-text">
+                  {selectedCount} selected of {devices.length} found
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setDevices((current) =>
+                  current.map((device) => ({ ...device, selected: true }))
+                )}
+              >
+                Select All
+              </button>
+            </div>
+
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th />
+                    <th>Model</th>
+                    <th>Serial</th>
+                    <th>Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {devices.map((device) => (
+                    <tr key={device.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={device.selected}
+                          onChange={() => toggleDevice(device.id)}
+                        />
+                      </td>
+                      <td>{device.model}</td>
+                      <td>{device.serial}</td>
+                      <td>{device.source === "pdf" ? "PDF" : "Manual"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="preview-actions">
+              <button
+                type="button"
+                disabled={selectedCount === 0}
+              >
+                Create Assets
+              </button>
+            </div>
           </section>
         ) : null}
       </section>
