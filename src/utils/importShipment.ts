@@ -5,27 +5,58 @@ import type { ShipmentDevice } from "../types/importShipment";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-const DEVICE_ROW_RE =
-  /(?:^|\s)(?<rowNumber>\d+\.)\s*(?<itemCode>[A-Z0-9/.-]+)\s+(?<rawModel>.+?)\s+SN:\s*(?<serial>[A-Z0-9]+)(?=\s+\d+\.\s+[A-Z0-9/.-]+\s+|$)/gi;
+const SERIAL_RE = /\bSN:\s*([A-Z0-9]+)\b/gi;
+
+const DEVICE_MARKERS = [
+  "MacBook Pro",
+  "MacBook Air",
+  "Mac mini",
+  "Mac Mini",
+  "iPhone",
+  "iPad",
+  "Pixel",
+  "Google Pixel",
+  "Apple Watch",
+];
+
+const CHIP_RE = /\bApple\s+M\d+(?:\s+(?:Pro|Max|Ultra))?\b/i;
 
 function normalizeSerial(serial: string): string {
   return serial.trim().replace(/\s+/g, "").replace(/^S/i, "");
 }
 
-function normalizeModel(model: string): string {
-  return model
-    .replace(/\s+/g, " ")
-    .replace(/\s+\d+[,.]\d+\s*kg.*$/i, "")
-    .replace(/\s+(?:\d+[- ]?Core CPU.*)$/i, "")
-    .replace(/\s+CTO.*$/i, "")
-    .replace(/\s+Nano-texture.*$/i, "")
-    .replace(/\s+Space Black.*$/i, "")
-    .replace(/\s+Midnight.*$/i, "")
-    .replace(/\s+Silver.*$/i, "")
-    .replace(/\s+Starlight.*$/i, "")
-    .replace(/\s+Black.*$/i, "")
-    .replace(/\s+Blue.*$/i, "")
-    .trim();
+function findLastDeviceMarkerIndex(text: string): number {
+  const lower = text.toLowerCase();
+  let bestIndex = -1;
+
+  for (const marker of DEVICE_MARKERS) {
+    const markerIndex = lower.lastIndexOf(marker.toLowerCase());
+    if (markerIndex > bestIndex) {
+      bestIndex = markerIndex;
+    }
+  }
+
+  return bestIndex;
+}
+
+function extractBaseModel(text: string): string | null {
+  const compact = text.replace(/\s+/g, " ").trim();
+  const chipMatch = compact.match(CHIP_RE);
+
+  if (chipMatch?.index == null) {
+    return compact || null;
+  }
+
+  const endIndex = chipMatch.index + chipMatch[0].length;
+  return compact.slice(0, endIndex).replace(/\s+/g, " ").trim() || null;
+}
+
+function extractModelFromChunk(chunk: string): string | null {
+  const deviceStartIndex = findLastDeviceMarkerIndex(chunk);
+  if (deviceStartIndex < 0) return null;
+
+  const afterDeviceStart = chunk.slice(deviceStartIndex);
+  return extractBaseModel(afterDeviceStart);
 }
 
 export async function extractPdfText(file: File): Promise<string> {
@@ -49,15 +80,24 @@ export async function extractPdfText(file: File): Promise<string> {
 }
 
 export function parseShipmentDevicesFromText(text: string): ShipmentDevice[] {
-  const normalizedText = text.replace(/\u00A0/g, " ");
+  const normalizedText = text.replace(/\u00A0/g, " ").replace(/\r/g, "\n");
   const devices: ShipmentDevice[] = [];
 
-  for (const match of normalizedText.matchAll(DEVICE_ROW_RE)) {
-    const rawModel = match.groups?.rawModel ?? "";
-    const serial = normalizeSerial(match.groups?.serial ?? "");
-    const model = normalizeModel(rawModel);
+  for (const match of normalizedText.matchAll(SERIAL_RE)) {
+    const serial = normalizeSerial(match[1] ?? "");
+    const serialIndex = match.index ?? -1;
 
-    if (!model || !serial) continue;
+    if (!serial || serialIndex < 0) continue;
+
+    const chunkStart = Math.max(0, serialIndex - 260);
+    const chunk = normalizedText.slice(chunkStart, serialIndex);
+
+    if (/DEP\b|Apple Device Enrollment Program/i.test(chunk)) {
+      continue;
+    }
+
+    const model = extractModelFromChunk(chunk);
+    if (!model) continue;
 
     devices.push({
       id: `${serial}-${devices.length}`,
