@@ -6,7 +6,7 @@ import type { ShipmentDevice } from "../types/importShipment";
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 const DEVICE_LINE_RE =
-  /^(?:\d+\.\s*)?(?<sku>[A-Z0-9/.-]+)\s+(?<model>.+?)\s+SN:\s*(?<serial>[A-Z0-9]+)\b/i;
+  /^(?:\d+(?:[,.]\d+)\s*kg\s+)?(?:\d+\.\s*)?(?:[A-Z0-9/.-]+\s+)?(?<model>.+?)\s+SN:\s*(?<serial>[A-Z0-9]+)\b/i;
 
 function normalizeSerial(serial: string): string {
   return serial.trim().replace(/\s+/g, "").replace(/^S/i, "");
