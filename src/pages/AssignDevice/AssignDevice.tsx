@@ -3,10 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { deviceCatalog } from "../../data/deviceCatalog";
 import { getInventoryBySerial, saveAssignment } from "../../services/inventory";
 import { createScanSession, getScanSession } from "../../services/scanSessions";
-import {
-  normalizeSerial,
-  type DeviceCatalogItem,
-} from "../../utils/deviceIdentification";
+import { normalizeSerial } from "../../utils/deviceIdentification";
 import "./AssignDevice.css";
 
 type MatchedInventory = {
@@ -29,14 +26,13 @@ export default function AssignDevice() {
   const [needsManualModel, setNeedsManualModel] = useState(false);
   const [scanSessionId, setScanSessionId] = useState("");
   const [isCreatingScanSession, setIsCreatingScanSession] = useState(false);
-  const [isLookingUp, setIsLookingUp] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   const lastSessionSerialRef = useRef("");
 
-  const selectedModel: DeviceCatalogItem | null = useMemo(
+  const selectedModel = useMemo(
     () => deviceCatalog.find((item) => item.id === selectedModelId) ?? null,
     [selectedModelId]
   );
@@ -60,7 +56,6 @@ export default function AssignDevice() {
     }
 
     setSerialNumber(normalized);
-    setIsLookingUp(true);
     setMatchedInventory(null);
     setNeedsManualModel(false);
     setSelectedModelId("");
@@ -87,7 +82,6 @@ export default function AssignDevice() {
     } catch {
       setErrorMessage("Could not search the inventory.");
     } finally {
-      setIsLookingUp(false);
     }
   }, []);
 
