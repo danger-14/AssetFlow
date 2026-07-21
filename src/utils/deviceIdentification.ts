@@ -16,35 +16,17 @@ export function normalizeSerial(value: string): string {
 export function extractSerialFromText(text: string): string {
   const normalized = text.replace(/\u00A0/g, " ");
 
-  // Priority 1 - (S) Serial No.
-  const serialSection = normalized.match(
-    /\(\s*S\s*\)\s*Serial\s*No\.?\s*([\s\S]{0,80})/i
-  );
+  const patterns = [
+    /\(\s*S\s*\)\s*Serial\s*No\.?\s*[:\-]?\s*([A-Z0-9]{6,20})\b/i,
+    /\bSerial\s*No\.?\s*[:\-]?\s*([A-Z0-9]{6,20})\b/i,
+    /\bSN[:\s-]*([A-Z0-9]{6,20})\b/i,
+  ];
 
-  if (serialSection) {
-    const match = serialSection[1].match(/\b([A-Z0-9]{8,20})\b/i);
-
-    if (match) {
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match?.[1]) {
       return normalizeSerial(match[1]);
     }
-  }
-
-  // Priority 2 - Serial No.
-  const serialNo = normalized.match(/Serial\s*No\.?\s*([\s\S]{0,80})/i);
-
-  if (serialNo) {
-    const match = serialNo[1].match(/\b([A-Z0-9]{8,20})\b/i);
-
-    if (match) {
-      return normalizeSerial(match[1]);
-    }
-  }
-
-  // Priority 3 - SN:
-  const sn = normalized.match(/SN[: ]*([A-Z0-9]{8,20})/i);
-
-  if (sn) {
-    return normalizeSerial(sn[1]);
   }
 
   return "";
