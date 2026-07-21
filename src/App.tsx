@@ -3,6 +3,7 @@ import Inventory from "./pages/Inventory/Inventory";
 import AddSingleAsset from "./pages/AddSingleAsset/AddSingleAsset";
 import ImportShipment from "./pages/ImportShipment/ImportShipment";
 import AssignDevice from "./pages/AssignDevice/AssignDevice";
+import ScanPhone from "./pages/ScanPhone/ScanPhone";
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/inventory/add" element={<AddSingleAsset />} />
         <Route path="/inventory/import" element={<ImportShipment />} />
         <Route path="/assign" element={<AssignDevice />} />
+        <Route path="/scan/:sessionId" element={<ScanPhone />} />
       </Routes>
     </BrowserRouter>
   );
