@@ -46,7 +46,33 @@ export async function getInventoryBySerial(serial: string) {
     throw error;
   }
 
-  return data;
+  return data as InventoryRow | null;
+}
+
+export async function saveAssignment(input: {
+  serial: string;
+  model: string;
+  usedBy: string;
+  source: string;
+}) {
+  const { error } = await supabase.from("inventory").upsert(
+    {
+      serial: input.serial,
+      model: input.model,
+      status: "Assigned",
+      source: input.source,
+      used_by: input.usedBy,
+    },
+    {
+      onConflict: "serial",
+    }
+  );
+
+  if (error) {
+    return { ok: false as const, error: error.message };
+  }
+
+  return { ok: true as const };
 }
 
 export async function listInventory() {
