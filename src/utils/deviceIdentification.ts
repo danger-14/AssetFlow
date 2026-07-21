@@ -30,9 +30,7 @@ export function extractSerialFromText(text: string): string {
   }
 
   // Priority 2 - Serial No.
-  const serialNo = normalized.match(
-    /Serial\s*No\.?\s*([\s\S]{0,80})/i
-  );
+  const serialNo = normalized.match(/Serial\s*No\.?\s*([\s\S]{0,80})/i);
 
   if (serialNo) {
     const match = serialNo[1].match(/\b([A-Z0-9]{8,20})\b/i);
@@ -50,43 +48,6 @@ export function extractSerialFromText(text: string): string {
   }
 
   return "";
-}
-
-  const candidates = normalized.match(/\b[A-Z0-9]{8,}\b/gi) ?? [];
-  const blocked = new Set([
-    "APPLE",
-    "MACBOOK",
-    "AIR",
-    "PRO",
-    "MIDNIGHT",
-    "SILVER",
-    "SPACE",
-    "BLACK",
-    "CTO",
-    "CPU",
-    "GPU",
-    "CORE",
-    "DEP",
-    "NOTE",
-    "WOLT",
-    "FINLAND",
-    "DISTRIBUTION",
-    "INTERNATIONAL",
-    "LIMITED",
-    "HOLLYHILL",
-    "INDUSTRIAL",
-    "ESTATE",
-    "CORK",
-    "IRELAND",
-    "MODEL",
-    "PART",
-    "NUMBER",
-    "PRODUCT",
-    "REV",
-  ]);
-
-  const candidate = candidates.find((token) => !blocked.has(token.toUpperCase()));
-  return candidate ? normalizeSerial(candidate) : "";
 }
 
 export function detectModelFromText(text: string): DeviceCatalogItem | null {
