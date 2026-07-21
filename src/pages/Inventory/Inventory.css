@@ -34,6 +34,7 @@
   display: grid;
   gap: 20px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 24px;
 }
 
 .inventory-card {
@@ -73,8 +74,82 @@ button {
   cursor: pointer;
 }
 
+button.secondary {
+  background: #2a2f3a;
+}
+
 button:hover {
   opacity: 0.95;
+}
+
+.inventory-list {
+  margin-top: 8px;
+  background: #171a21;
+  border: 1px solid #2a2f3a;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+}
+
+.inventory-list-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.inventory-list-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.helper-text {
+  margin: 6px 0 0;
+  color: #9ca3af;
+}
+
+.error-text {
+  margin: 0 0 12px;
+  color: #f87171;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid #2f3743;
+  border-radius: 16px;
+  background: #0f1115;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead th {
+  text-align: left;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  padding: 14px 16px;
+  border-bottom: 1px solid #2f3743;
+}
+
+tbody td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #1f2430;
+  vertical-align: top;
+  color: #e5e7eb;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.empty-state {
+  text-align: center;
+  color: #9ca3af;
 }
 
 @media (max-width: 900px) {
@@ -84,5 +159,10 @@ button:hover {
 
   .inventory-page {
     padding: 20px;
+  }
+
+  .inventory-list-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
