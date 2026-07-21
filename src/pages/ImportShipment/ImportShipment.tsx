@@ -5,6 +5,7 @@ import {
   parseShipmentDevicesFromText,
 } from "../../utils/importShipment";
 import type { ShipmentDevice } from "../../types/importShipment";
+import { saveShipmentDevices } from "../../services/inventory";
 import "./ImportShipment.css";
 
 export default function ImportShipment() {
@@ -13,7 +14,9 @@ export default function ImportShipment() {
   const [manualModel, setManualModel] = useState("");
   const [devices, setDevices] = useState<ShipmentDevice[]>([]);
   const [isReading, setIsReading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const fileName = useMemo(() => {
     if (!selectedFile) return "No file selected";
@@ -35,6 +38,7 @@ export default function ImportShipment() {
 
   const handlePreview = async () => {
     setError("");
+    setSuccessMessage("");
     setDevices([]);
 
     try {
@@ -71,6 +75,35 @@ export default function ImportShipment() {
     setManualModel("");
     setDevices([]);
     setError("");
+    setSuccessMessage("");
+  };
+
+  const handleCreateAssets = async () => {
+    setError("");
+    setSuccessMessage("");
+
+    const selectedDevices = devices.filter((device) => device.selected);
+
+    if (selectedDevices.length === 0) {
+      setError("Select at least one device before creating assets.");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const result = await saveShipmentDevices(selectedDevices);
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      setSuccessMessage(`${result.saved} device(s) saved to Supabase.`);
+    } catch {
+      setError("Could not save the devices.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -127,6 +160,7 @@ export default function ImportShipment() {
         </div>
 
         {error ? <p className="error-text">{error}</p> : null}
+        {successMessage ? <p className="status-text">{successMessage}</p> : null}
 
         {devices.length > 0 ? (
           <section className="preview">
@@ -141,9 +175,11 @@ export default function ImportShipment() {
               <button
                 type="button"
                 className="secondary"
-                onClick={() => setDevices((current) =>
-                  current.map((device) => ({ ...device, selected: true }))
-                )}
+                onClick={() =>
+                  setDevices((current) =>
+                    current.map((device) => ({ ...device, selected: true }))
+                  )
+                }
               >
                 Select All
               </button>
@@ -181,9 +217,10 @@ export default function ImportShipment() {
             <div className="preview-actions">
               <button
                 type="button"
-                disabled={selectedCount === 0}
+                disabled={selectedCount === 0 || isSaving}
+                onClick={handleCreateAssets}
               >
-                Create Assets
+                {isSaving ? "Saving..." : "Create Assets"}
               </button>
             </div>
           </section>
