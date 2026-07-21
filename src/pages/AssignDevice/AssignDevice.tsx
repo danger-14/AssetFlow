@@ -3,6 +3,7 @@ import { BrowserMultiFormatReader } from "@zxing/browser";
 import Tesseract from "tesseract.js";
 
 import { deviceCatalog } from "../../data/deviceCatalog";
+import { getInventoryBySerial, saveAssignment } from "../../services/inventory";
 import "./AssignDevice.css";
 
 function simplifyForMatch(value: string): string {
@@ -67,18 +68,27 @@ function detectModelFromText(text: string) {
 }
 
 export default function AssignDevice() {
-  const [selectedModelId, setSelectedModelId] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
-  const [userName, setUserName] = useState("");
+  const [usedByEmail, setUsedByEmail] = useState("");
+  const [selectedModelId, setSelectedModelId] = useState("");
+  const [matchedInventory, setMatchedInventory] = useState<{
+    serial: string;
+    model: string;
+    status: string;
+    source: string;
+    used_by: string | null;
+  } | null>(null);
+  const [needsManualModel, setNeedsManualModel] = useState(false);
+  const [isLookingUp, setIsLookingUp] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [isReadingPhoto, setIsReadingPhoto] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [ocrText, setOcrText] = useState("");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
 
   const selectedModel = useMemo(
@@ -86,10 +96,11 @@ export default function AssignDevice() {
     [selectedModelId]
   );
 
+  const resolvedModelText = matchedInventory?.model || selectedModel?.product || "";
+
   const stopScanner = () => {
     controlsRef.current?.stop();
     controlsRef.current = null;
-    readerRef.current = null;
     setIsScanning(false);
   };
 
@@ -97,8 +108,49 @@ export default function AssignDevice() {
     return () => {
       stopScanner();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const lookupSerial = async (rawSerial: string) => {
+    const normalized = normalizeSerial(rawSerial);
+
+    if (!normalized) {
+      setMatchedInventory(null);
+      setNeedsManualModel(false);
+      setErrorMessage("Please scan or enter a serial number.");
+      return;
+    }
+
+    setSerialNumber(normalized);
+    setErrorMessage("");
+    setStatusMessage("");
+    setIsLookingUp(true);
+    setMatchedInventory(null);
+    setNeedsManualModel(false);
+    setSelectedModelId("");
+
+    try {
+      const device = await getInventoryBySerial(normalized);
+
+      if (device) {
+        setMatchedInventory({
+          serial: device.serial,
+          model: device.model,
+          status: device.status,
+          source: device.source,
+          used_by: device.used_by,
+        });
+        setStatusMessage("Device found.");
+        return;
+      }
+
+      setNeedsManualModel(true);
+      setErrorMessage("Device not found. Please select the model.");
+    } catch {
+      setErrorMessage("Could not look up the serial number.");
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
 
   const startScanner = async () => {
     setErrorMessage("");
@@ -114,7 +166,6 @@ export default function AssignDevice() {
     setIsScanning(true);
 
     const reader = new BrowserMultiFormatReader();
-    readerRef.current = reader;
 
     try {
       await reader.decodeFromVideoDevice(
@@ -124,12 +175,8 @@ export default function AssignDevice() {
           controlsRef.current = controls ?? null;
 
           if (result) {
-            const scanned = normalizeSerial(result.getText());
-            if (scanned) {
-              setSerialNumber(scanned);
-              setStatusMessage(`Serial captured: ${scanned}`);
-            }
             stopScanner();
+            void lookupSerial(result.getText());
             return;
           }
 
@@ -167,16 +214,11 @@ export default function AssignDevice() {
 
       if (detectedSerial) {
         setSerialNumber(detectedSerial);
-      }
-
-      if (detectedModel) {
+        void lookupSerial(detectedSerial);
+      } else if (detectedModel) {
         setSelectedModelId(detectedModel.id);
-      }
-
-      if (detectedSerial || detectedModel) {
-        setStatusMessage("Photo read successfully.");
       } else {
-        setErrorMessage("Could not find a model or serial number in the photo.");
+        setErrorMessage("Could not find a serial number in the photo.");
       }
     } catch {
       setErrorMessage("Could not read the photo.");
@@ -185,35 +227,67 @@ export default function AssignDevice() {
     }
   };
 
-  const handleAssign = () => {
+  const handleAssign = async () => {
     setErrorMessage("");
     setStatusMessage("");
 
-    if (!selectedModel) {
-      setErrorMessage("Please select a model.");
-      return;
-    }
+    const serial = normalizeSerial(serialNumber);
+    const usedBy = usedByEmail.trim();
 
-    if (!serialNumber.trim()) {
+    if (!serial) {
       setErrorMessage("Please scan or enter a serial number.");
       return;
     }
 
-    if (!userName.trim()) {
-      setErrorMessage("Please enter a user name.");
+    if (!usedBy) {
+      setErrorMessage("Please enter the Used By email address.");
       return;
     }
 
-    setStatusMessage(
-      `Ready to assign ${selectedModel.product} with serial ${serialNumber.trim()} to ${userName.trim()}.`
-    );
+    const model = matchedInventory?.model || selectedModel?.product || "";
+
+    if (!model) {
+      setErrorMessage("Please select the model.");
+      return;
+    }
+
+    try {
+      setIsAssigning(true);
+
+      const result = await saveAssignment({
+        serial,
+        model,
+        usedBy,
+        source: matchedInventory?.source || "Manual",
+      });
+
+      if (!result.ok) {
+        setErrorMessage(result.error);
+        return;
+      }
+
+      setStatusMessage(`Ready: ${model} / ${serial} / ${usedBy}`);
+      setMatchedInventory({
+        serial,
+        model,
+        status: "Assigned",
+        source: matchedInventory?.source || "Manual",
+        used_by: usedBy,
+      });
+    } catch {
+      setErrorMessage("Could not save the assignment.");
+    } finally {
+      setIsAssigning(false);
+    }
   };
 
   const handleClear = () => {
     stopScanner();
-    setSelectedModelId("");
     setSerialNumber("");
-    setUserName("");
+    setUsedByEmail("");
+    setSelectedModelId("");
+    setMatchedInventory(null);
+    setNeedsManualModel(false);
     setStatusMessage("");
     setErrorMessage("");
     setOcrText("");
@@ -224,33 +298,29 @@ export default function AssignDevice() {
       <header className="page-header">
         <p className="page-tag">Deployment</p>
         <h1>Assign Device</h1>
-        <p>
-          Scan a barcode or QR code, or take a picture of the box to capture the
-          serial number.
-        </p>
+        <p>Scan a barcode, take a picture, or enter the serial number manually.</p>
       </header>
 
       <section className="assign-card">
         <div className="form-group">
-          <label htmlFor="model">Model</label>
-          <select
-            id="model"
-            value={selectedModelId}
-            onChange={(e) => setSelectedModelId(e.target.value)}
-          >
-            <option value="">Select model</option>
-            {deviceCatalog.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.product}
-              </option>
-            ))}
-          </select>
+          <label htmlFor="serial">Serial Number</label>
+          <input
+            id="serial"
+            type="text"
+            placeholder="Serial number"
+            value={serialNumber}
+            onChange={(e) => setSerialNumber(e.target.value)}
+            onBlur={() => void lookupSerial(serialNumber)}
+          />
         </div>
 
         <div className="scan-grid">
           <div className="scan-panel">
             <h2>Barcode / QR</h2>
-            <video ref={videoRef} className={isScanning ? "scanner-video" : "scanner-video hidden"} />
+            <video
+              ref={videoRef}
+              className={isScanning ? "scanner-video" : "scanner-video hidden"}
+            />
             <div className="button-row">
               <button type="button" onClick={startScanner} disabled={isScanning}>
                 {isScanning ? "Scanning..." : "Scan Barcode / QR"}
@@ -279,50 +349,89 @@ export default function AssignDevice() {
               >
                 {isReadingPhoto ? "Reading Photo..." : "Take Picture"}
               </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => void lookupSerial(serialNumber)}
+                disabled={isLookingUp}
+              >
+                {isLookingUp ? "Looking up..." : "Find Device"}
+              </button>
             </div>
             <p className="helper-text">
-              Take a picture of the box label to read the serial number.
+              Read the box label if the barcode or QR code is not enough.
             </p>
           </div>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="serial">Serial Number</label>
-          <input
-            id="serial"
-            type="text"
-            placeholder="Serial number will fill here"
-            value={serialNumber}
-            onChange={(e) => setSerialNumber(e.target.value)}
-          />
-        </div>
+        {matchedInventory ? (
+          <section className="summary-card">
+            <h2>Device Found</h2>
+            <p>
+              <strong>Model:</strong> {matchedInventory.model}
+            </p>
+            <p>
+              <strong>Serial:</strong> {matchedInventory.serial}
+            </p>
+            <p>
+              <strong>Status:</strong> {matchedInventory.status}
+            </p>
+            <p>
+              <strong>Source:</strong> {matchedInventory.source}
+            </p>
+            {matchedInventory.used_by ? (
+              <p>
+                <strong>Used By:</strong> {matchedInventory.used_by}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
+        {needsManualModel ? (
+          <div className="form-group">
+            <label htmlFor="model">Model</label>
+            <select
+              id="model"
+              value={selectedModelId}
+              onChange={(e) => setSelectedModelId(e.target.value)}
+            >
+              <option value="">Select model</option>
+              {deviceCatalog.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.product}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         <div className="form-group">
-          <label htmlFor="user">Used By</label>
+          <label htmlFor="usedBy">Used By</label>
           <input
-            id="user"
-            type="text"
-            placeholder="Enter user name"
-            value={userName}
-            onChange={(e) => setUserName(e.target.value)}
+            id="usedBy"
+            type="email"
+            placeholder="employee@wolt.com"
+            value={usedByEmail}
+            onChange={(e) => setUsedByEmail(e.target.value)}
           />
         </div>
 
         <div className="summary-card">
-          <h2>Preview</h2>
+          <h2>Review</h2>
           <p>
-            <strong>Model:</strong> {selectedModel?.product || "Not selected"}
+            <strong>Model:</strong> {resolvedModelText || "Not selected"}
           </p>
           <p>
             <strong>Serial:</strong> {serialNumber || "Not scanned yet"}
           </p>
           <p>
-            <strong>User:</strong> {userName || "Not selected"}
+            <strong>Used By:</strong> {usedByEmail || "Not entered yet"}
           </p>
         </div>
 
         {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
         {statusMessage ? <p className="status-text">{statusMessage}</p> : null}
+
         {ocrText ? (
           <details className="ocr-details">
             <summary>OCR text</summary>
@@ -331,8 +440,8 @@ export default function AssignDevice() {
         ) : null}
 
         <div className="button-row">
-          <button type="button" className="assign-button" onClick={handleAssign}>
-            Assign Device
+          <button type="button" className="assign-button" onClick={handleAssign} disabled={isAssigning}>
+            {isAssigning ? "Saving..." : "Assign Device"}
           </button>
           <button type="button" className="secondary" onClick={handleClear}>
             Clear
