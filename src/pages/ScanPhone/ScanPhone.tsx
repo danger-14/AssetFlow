@@ -17,12 +17,10 @@ export default function ScanPhone() {
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
-  const controlsRef = useRef<{ stop: () => void } | null>(null);
 
   useEffect(() => {
     return () => {
-      controlsRef.current?.stop();
-      controlsRef.current = null;
+      setIsScanning(false);
     };
   }, []);
 
@@ -58,49 +56,30 @@ export default function ScanPhone() {
       return;
     }
 
-    controlsRef.current?.stop();
-    controlsRef.current = null;
-
     setIsScanning(true);
 
-    const reader = new BrowserMultiFormatReader();
-    reader.possibleFormats = [
-      BarcodeFormat.CODE_128,
-      BarcodeFormat.CODE_39,
-      BarcodeFormat.QR_CODE,
-    ];
-
     try {
-      const controls = await reader.decodeOnceFromVideoDevice(
-        undefined,
-        videoRef.current,
-        async (result, error) => {
-          if (result) {
-            controls.stop();
-            setIsScanning(false);
-            await submitSerial(result.getText());
-            return;
-          }
+      const reader = new BrowserMultiFormatReader();
+      reader.possibleFormats = [
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.CODE_39,
+        BarcodeFormat.QR_CODE,
+      ];
 
-          if (
-            error &&
-            !(error instanceof Error && error.name === "NotFoundException")
-          ) {
-            setErrorMessage("Could not read the barcode or QR code.");
-          }
-        }
+      const result = await reader.decodeOnceFromVideoDevice(
+        undefined,
+        videoRef.current
       );
 
-      controlsRef.current = controls;
+      await submitSerial(result.getText());
     } catch {
-      setErrorMessage("Could not start the camera.");
+      setErrorMessage("Could not read the barcode or QR code.");
+    } finally {
       setIsScanning(false);
     }
   };
 
   const stopScanner = () => {
-    controlsRef.current?.stop();
-    controlsRef.current = null;
     setIsScanning(false);
   };
 
