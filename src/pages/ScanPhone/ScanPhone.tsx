@@ -79,10 +79,6 @@ export default function ScanPhone() {
     }
   };
 
-  const stopScanner = () => {
-    setIsScanning(false);
-  };
-
   const handlePhotoUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
