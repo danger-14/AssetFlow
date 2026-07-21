@@ -50,7 +50,7 @@ export default function ScanPhone() {
       return;
     }
 
-    setStatusMessage(`Serial sent: ${serial}`);
+    setStatusMessage("Serial sent successfully.");
   };
 
   const startScanner = async () => {
