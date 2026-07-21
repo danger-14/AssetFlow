@@ -184,5 +184,6 @@ button:hover:not(:disabled) {
     left: 50%;
     top: 68%;
     transform: translate(-50%, -50%);
+    
   }
 }
