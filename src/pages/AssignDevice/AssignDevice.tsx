@@ -112,41 +112,35 @@ export default function AssignDevice() {
 
   const lookupSerial = async (rawSerial: string) => {
     const normalized = normalizeSerial(rawSerial);
-
+  
     if (!normalized) {
       setMatchedInventory(null);
       setNeedsManualModel(false);
-      setErrorMessage("Please scan or enter a serial number.");
+      setSelectedModelId("");
       return;
     }
-
+  
     setSerialNumber(normalized);
-    setErrorMessage("");
-    setStatusMessage("");
     setIsLookingUp(true);
     setMatchedInventory(null);
     setNeedsManualModel(false);
     setSelectedModelId("");
-
+    setErrorMessage("");
+    setStatusMessage("");
+  
     try {
       const device = await getInventoryBySerial(normalized);
-
+  
       if (device) {
-        setMatchedInventory({
-          serial: device.serial,
-          model: device.model,
-          status: device.status,
-          source: device.source,
-          used_by: device.used_by,
-        });
-        setStatusMessage("Device found.");
+        setMatchedInventory(device);
+        setStatusMessage("Device identified.");
         return;
       }
-
+  
       setNeedsManualModel(true);
-      setErrorMessage("Device not found. Please select the model.");
+      setErrorMessage("Serial not found. Please select the model.");
     } catch {
-      setErrorMessage("Could not look up the serial number.");
+      setErrorMessage("Could not search the inventory.");
     } finally {
       setIsLookingUp(false);
     }
@@ -307,7 +301,7 @@ export default function AssignDevice() {
           <input
             id="serial"
             type="text"
-            placeholder="Serial number"
+            placeholder="Scan or enter serial number"
             value={serialNumber}
             onChange={(e) => setSerialNumber(e.target.value)}
             onBlur={() => void lookupSerial(serialNumber)}
