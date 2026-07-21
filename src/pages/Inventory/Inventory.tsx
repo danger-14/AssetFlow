@@ -1,30 +1,8 @@
 import { useNavigate } from "react-router-dom";
-
 import "./Inventory.css";
 
 function Inventory() {
   const navigate = useNavigate();
-  const [rows, setRows] = useState<InventoryRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const loadInventory = async () => {
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const data = await listInventory();
-      setRows(data);
-    } catch {
-      setError("Could not load inventory from Supabase.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadInventory();
-  }, []);
 
   return (
     <main className="inventory-page">
