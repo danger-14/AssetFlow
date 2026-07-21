@@ -2,17 +2,21 @@ import { supabase } from "../lib/supabaseClient";
 import type { ShipmentDevice } from "../types/importShipment";
 
 export type InventoryRow = {
+  id: string;
   serial: string;
   model: string;
   status: string;
   source: string;
   used_by: string | null;
+  imported_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 };
 
 export async function saveShipmentDevices(
   devices: ShipmentDevice[]
 ): Promise<{ saved: number; error?: string }> {
-  const rows: InventoryRow[] = devices.map((device) => ({
+  const rows = devices.map((device) => ({
     serial: device.serial,
     model: device.model,
     status: "Stock",
@@ -43,4 +47,18 @@ export async function getInventoryBySerial(serial: string) {
   }
 
   return data;
+}
+
+export async function listInventory() {
+  const { data, error } = await supabase
+    .from("inventory")
+    .select("*")
+    .order("imported_at", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return data as InventoryRow[];
 }
