@@ -89,7 +89,6 @@ export default function AssignDevice() {
   const stopScanner = () => {
     controlsRef.current?.stop();
     controlsRef.current = null;
-    readerRef.current?.reset();
     readerRef.current = null;
     setIsScanning(false);
   };
