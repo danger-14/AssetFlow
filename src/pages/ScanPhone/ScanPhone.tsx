@@ -119,23 +119,26 @@ export default function ScanPhone() {
     <main className="scan-page">
       <header className="page-header">
         <p className="page-tag">Phone Scanner</p>
-        <h1>Scan Device</h1>
-        <p>Scan the Apple box with your iPhone and send the serial back to AssetFlow.</p>
+        <h1>Scan Serial Number</h1>
+        <p>
+          Align the <strong>(S) Serial No.</strong> label inside the guide.
+        </p>
       </header>
 
       <section className="scan-card">
         <div className="scan-panel">
-          <h2>Camera</h2>
+          <h2>Scan Serial Number</h2>
           <video
             ref={videoRef}
             className={isScanning ? "scanner-video" : "scanner-video hidden"}
           />
           <div className="button-row">
-            <button type="button" onClick={startScanner} disabled={isScanning}>
-              {isScanning ? "Scanning..." : "Start Camera"}
-            </button>
-            <button type="button" className="secondary" onClick={stopScanner}>
-              Stop Camera
+            <button
+              type="button"
+              onClick={startScanner}
+              disabled={isScanning}
+            >
+              {isScanning ? "Scanning..." : "📷 Scan Serial Number"}
             </button>
           </div>
         </div>
