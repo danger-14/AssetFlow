@@ -17,6 +17,8 @@ export function extractSerialFromText(text: string): string {
   const normalized = text.replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
 
   const directPatterns = [
+    /\(\s*S\s*\)\s*SERIAL\s+NO\.?\s*[:\-]?\s*([A-Z0-9]{6,})\b/i,
+    /\bSERIAL\s+NO\.?\s*[:\-]?\s*([A-Z0-9]{6,})\b/i,
     /\bSN[:\s-]*([A-Z0-9]{6,})\b/i,
     /\bSERIAL(?:\s+NUMBER)?[:\s-]*([A-Z0-9]{6,})\b/i,
   ];
@@ -46,6 +48,19 @@ export function extractSerialFromText(text: string): string {
     "NOTE",
     "WOLT",
     "FINLAND",
+    "DISTRIBUTION",
+    "INTERNATIONAL",
+    "LIMITED",
+    "HOLLYHILL",
+    "INDUSTRIAL",
+    "ESTATE",
+    "CORK",
+    "IRELAND",
+    "MODEL",
+    "PART",
+    "NUMBER",
+    "PRODUCT",
+    "REV",
   ]);
 
   const candidate = candidates.find((token) => !blocked.has(token.toUpperCase()));
