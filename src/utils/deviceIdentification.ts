@@ -14,55 +14,43 @@ export function normalizeSerial(value: string): string {
 }
 
 export function extractSerialFromText(text: string): string {
-    const normalized = text.replace(/\u00A0/g, " ");
-  
-    //
-    // PRIORITY 1
-    // Look ONLY after "(S) Serial No."
-    //
-    const serialSection = normalized.match(
-      /\(\s*S\s*\)\s*Serial\s*No\.?\s*([\s\S]{0,80})/i
-    );
-  
-    if (serialSection) {
-      const serialMatch = serialSection[1].match(/\b([A-Z0-9]{8,20})\b/i);
-  
-      if (serialMatch) {
-        return normalizeSerial(serialMatch[1]);
-      }
+  const normalized = text.replace(/\u00A0/g, " ");
+
+  // Priority 1 - (S) Serial No.
+  const serialSection = normalized.match(
+    /\(\s*S\s*\)\s*Serial\s*No\.?\s*([\s\S]{0,80})/i
+  );
+
+  if (serialSection) {
+    const match = serialSection[1].match(/\b([A-Z0-9]{8,20})\b/i);
+
+    if (match) {
+      return normalizeSerial(match[1]);
     }
-  
-    //
-    // PRIORITY 2
-    // Standard "Serial No."
-    //
-    const serialNo = normalized.match(
-      /Serial\s*No\.?\s*([\s\S]{0,80})/i
-    );
-  
-    if (serialNo) {
-      const serialMatch = serialNo[1].match(/\b([A-Z0-9]{8,20})\b/i);
-  
-      if (serialMatch) {
-        return normalizeSerial(serialMatch[1]);
-      }
-    }
-  
-    //
-    // PRIORITY 3
-    // SN:
-    //
-    const sn = normalized.match(/SN[:\s]*([A-Z0-9]{8,20})/i);
-  
-    if (sn) {
-      return normalizeSerial(sn[1]);
-    }
-  
-    //
-    // No fallback.
-    //
-    return "";
   }
+
+  // Priority 2 - Serial No.
+  const serialNo = normalized.match(
+    /Serial\s*No\.?\s*([\s\S]{0,80})/i
+  );
+
+  if (serialNo) {
+    const match = serialNo[1].match(/\b([A-Z0-9]{8,20})\b/i);
+
+    if (match) {
+      return normalizeSerial(match[1]);
+    }
+  }
+
+  // Priority 3 - SN:
+  const sn = normalized.match(/SN[: ]*([A-Z0-9]{8,20})/i);
+
+  if (sn) {
+    return normalizeSerial(sn[1]);
+  }
+
+  return "";
+}
 
   const candidates = normalized.match(/\b[A-Z0-9]{8,}\b/gi) ?? [];
   const blocked = new Set([
