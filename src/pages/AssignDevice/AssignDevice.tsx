@@ -1,125 +1,64 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { BrowserMultiFormatReader } from "@zxing/browser";
-import Tesseract from "tesseract.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { deviceCatalog } from "../../data/deviceCatalog";
 import { getInventoryBySerial, saveAssignment } from "../../services/inventory";
+import { createScanSession, getScanSession } from "../../services/scanSessions";
+import {
+  normalizeSerial,
+  type DeviceCatalogItem,
+} from "../../utils/deviceIdentification";
 import "./AssignDevice.css";
 
-function simplifyForMatch(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
+type MatchedInventory = {
+  serial: string;
+  model: string;
+  status: string;
+  source: string;
+  used_by: string | null;
+};
 
-function normalizeSerial(value: string): string {
-  return value
-    .toUpperCase()
-    .replace(/\s+/g, "")
-    .replace(/[^A-Z0-9]/g, "")
-    .replace(/^S(?=[A-Z0-9]{6,})/, "");
-}
-
-function extractSerialFromText(text: string): string {
-  const normalized = text.replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
-
-  const directPatterns = [
-    /\bSN[:\s-]*([A-Z0-9]{6,})\b/i,
-    /\bSERIAL(?:\s+NUMBER)?[:\s-]*([A-Z0-9]{6,})\b/i,
-  ];
-
-  for (const pattern of directPatterns) {
-    const match = normalized.match(pattern);
-    if (match?.[1]) {
-      return normalizeSerial(match[1]);
-    }
-  }
-
-  const candidates = normalized.match(/\b[A-Z0-9]{8,}\b/gi) ?? [];
-  const blocked = new Set([
-    "APPLE",
-    "MACBOOK",
-    "AIR",
-    "PRO",
-    "MIDNIGHT",
-    "SILVER",
-    "SPACE",
-    "BLACK",
-    "CTO",
-    "CPU",
-    "GPU",
-    "CORE",
-    "DEP",
-    "NOTE",
-    "WOLT",
-    "FINLAND",
-  ]);
-
-  const candidate = candidates.find((token) => !blocked.has(token.toUpperCase()));
-  return candidate ? normalizeSerial(candidate) : "";
-}
-
-function detectModelFromText(text: string) {
-  const simplifiedText = simplifyForMatch(text);
-
-  return (
-    deviceCatalog.find((item) =>
-      simplifiedText.includes(simplifyForMatch(item.product))
-    ) ?? null
-  );
+function getScannerUrl(sessionId: string) {
+  return `${window.location.origin}/scan/${sessionId}`;
 }
 
 export default function AssignDevice() {
   const [serialNumber, setSerialNumber] = useState("");
   const [usedByEmail, setUsedByEmail] = useState("");
   const [selectedModelId, setSelectedModelId] = useState("");
-  const [matchedInventory, setMatchedInventory] = useState<{
-    serial: string;
-    model: string;
-    status: string;
-    source: string;
-    used_by: string | null;
-  } | null>(null);
+  const [matchedInventory, setMatchedInventory] = useState<MatchedInventory | null>(null);
   const [needsManualModel, setNeedsManualModel] = useState(false);
+  const [scanSessionId, setScanSessionId] = useState("");
+  const [isCreatingScanSession, setIsCreatingScanSession] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
-  const [isReadingPhoto, setIsReadingPhoto] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [ocrText, setOcrText] = useState("");
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const photoInputRef = useRef<HTMLInputElement | null>(null);
-  const controlsRef = useRef<{ stop: () => void } | null>(null);
+  const lastSessionSerialRef = useRef("");
 
-  const selectedModel = useMemo(
+  const selectedModel: DeviceCatalogItem | null = useMemo(
     () => deviceCatalog.find((item) => item.id === selectedModelId) ?? null,
     [selectedModelId]
   );
 
   const resolvedModelText = matchedInventory?.model || selectedModel?.product || "";
+  const scannerUrl = scanSessionId ? getScannerUrl(scanSessionId) : "";
+  const scannerQrUrl = scannerUrl
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
+        scannerUrl
+      )}`
+    : "";
 
-  const stopScanner = () => {
-    controlsRef.current?.stop();
-    controlsRef.current = null;
-    setIsScanning(false);
-  };
-
-  useEffect(() => {
-    return () => {
-      stopScanner();
-    };
-  }, []);
-
-  const lookupSerial = async (rawSerial: string) => {
+  const lookupSerial = useCallback(async (rawSerial: string) => {
     const normalized = normalizeSerial(rawSerial);
-  
+
     if (!normalized) {
       setMatchedInventory(null);
       setNeedsManualModel(false);
       setSelectedModelId("");
       return;
     }
-  
+
     setSerialNumber(normalized);
     setIsLookingUp(true);
     setMatchedInventory(null);
@@ -127,16 +66,22 @@ export default function AssignDevice() {
     setSelectedModelId("");
     setErrorMessage("");
     setStatusMessage("");
-  
+
     try {
       const device = await getInventoryBySerial(normalized);
-  
+
       if (device) {
-        setMatchedInventory(device);
+        setMatchedInventory({
+          serial: device.serial,
+          model: device.model,
+          status: device.status,
+          source: device.source,
+          used_by: device.used_by,
+        });
         setStatusMessage("Device identified.");
         return;
       }
-  
+
       setNeedsManualModel(true);
       setErrorMessage("Serial not found. Please select the model.");
     } catch {
@@ -144,80 +89,62 @@ export default function AssignDevice() {
     } finally {
       setIsLookingUp(false);
     }
-  };
+  }, []);
 
-  const startScanner = async () => {
-    setErrorMessage("");
-    setStatusMessage("");
-    setOcrText("");
+  useEffect(() => {
+    if (!scanSessionId) return;
 
-    if (!videoRef.current) {
-      setErrorMessage("Camera is not ready yet.");
-      return;
-    }
+    let active = true;
 
-    stopScanner();
-    setIsScanning(true);
+    const pollSession = async () => {
+      try {
+        const session = await getScanSession(scanSessionId);
+        if (!active || !session?.serial) return;
 
-    const reader = new BrowserMultiFormatReader();
+        const serial = normalizeSerial(session.serial);
 
-    try {
-      await reader.decodeFromVideoDevice(
-        undefined,
-        videoRef.current,
-        (result, error, controls) => {
-          controlsRef.current = controls ?? null;
+        if (!serial || serial === lastSessionSerialRef.current) return;
 
-          if (result) {
-            stopScanner();
-            void lookupSerial(result.getText());
-            return;
-          }
-
-          if (error && !(error instanceof Error && error.name === "NotFoundException")) {
-            setErrorMessage("Could not read the barcode or QR code.");
-          }
-        }
-      );
-    } catch {
-      setErrorMessage("Could not start the camera.");
-      stopScanner();
-    }
-  };
-
-  const handlePhotoUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file) return;
-
-    setErrorMessage("");
-    setStatusMessage("");
-    setIsReadingPhoto(true);
-    setOcrText("");
-
-    try {
-      const result = await Tesseract.recognize(file, "eng");
-      const text = result.data.text ?? "";
-      setOcrText(text);
-
-      const detectedSerial = extractSerialFromText(text);
-      const detectedModel = detectModelFromText(text);
-
-      if (detectedSerial) {
-        setSerialNumber(detectedSerial);
-        void lookupSerial(detectedSerial);
-      } else if (detectedModel) {
-        setSelectedModelId(detectedModel.id);
-      } else {
-        setErrorMessage("Could not find a serial number in the photo.");
+        lastSessionSerialRef.current = serial;
+        setSerialNumber(serial);
+        setStatusMessage("Serial received from iPhone.");
+        await lookupSerial(serial);
+      } catch {
+        // ignore polling errors
       }
-    } catch {
-      setErrorMessage("Could not read the photo.");
+    };
+
+    void pollSession();
+    const timer = window.setInterval(() => {
+      void pollSession();
+    }, 1200);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [scanSessionId, lookupSerial]);
+
+  const createPhoneScanSession = async () => {
+    setErrorMessage("");
+    setStatusMessage("");
+
+    const sessionId = crypto.randomUUID();
+    setIsCreatingScanSession(true);
+
+    try {
+      const result = await createScanSession(sessionId);
+
+      if (!result.ok) {
+        setErrorMessage(result.error);
+        return;
+      }
+
+      lastSessionSerialRef.current = "";
+      setScanSessionId(sessionId);
+      setStatusMessage("Open the QR code with your iPhone.");
     } finally {
-      setIsReadingPhoto(false);
+      setIsCreatingScanSession(false);
     }
   };
 
@@ -260,7 +187,6 @@ export default function AssignDevice() {
         return;
       }
 
-      setStatusMessage(`Ready: ${model} / ${serial} / ${usedBy}`);
       setMatchedInventory({
         serial,
         model,
@@ -268,6 +194,7 @@ export default function AssignDevice() {
         source: matchedInventory?.source || "Manual",
         used_by: usedBy,
       });
+      setStatusMessage(`Ready: ${model} / ${serial} / ${usedBy}`);
     } catch {
       setErrorMessage("Could not save the assignment.");
     } finally {
@@ -276,7 +203,8 @@ export default function AssignDevice() {
   };
 
   const handleClear = () => {
-    stopScanner();
+    setScanSessionId("");
+    lastSessionSerialRef.current = "";
     setSerialNumber("");
     setUsedByEmail("");
     setSelectedModelId("");
@@ -284,7 +212,6 @@ export default function AssignDevice() {
     setNeedsManualModel(false);
     setStatusMessage("");
     setErrorMessage("");
-    setOcrText("");
   };
 
   return (
@@ -292,10 +219,35 @@ export default function AssignDevice() {
       <header className="page-header">
         <p className="page-tag">Deployment</p>
         <h1>Assign Device</h1>
-        <p>Scan a barcode, take a picture, or enter the serial number manually.</p>
+        <p>Use your iPhone to scan the box, then assign the device by email.</p>
       </header>
 
       <section className="assign-card">
+        <div className="scanner-launch">
+          <div>
+            <h2>Scan with iPhone</h2>
+            <p className="helper-text">
+              Open the scanner on your phone, scan the box, and send the serial back here.
+            </p>
+          </div>
+
+          <button type="button" onClick={createPhoneScanSession} disabled={isCreatingScanSession}>
+            {isCreatingScanSession ? "Creating..." : "Scan with iPhone"}
+          </button>
+        </div>
+
+        {scannerUrl ? (
+          <div className="phone-scanner">
+            <img src={scannerQrUrl} alt="Scan with iPhone" />
+            <div className="phone-scanner-copy">
+              <p className="helper-text">Open this on your phone:</p>
+              <a href={scannerUrl} target="_blank" rel="noreferrer">
+                {scannerUrl}
+              </a>
+            </div>
+          </div>
+        ) : null}
+
         <div className="form-group">
           <label htmlFor="serial">Serial Number</label>
           <input
@@ -306,56 +258,6 @@ export default function AssignDevice() {
             onChange={(e) => setSerialNumber(e.target.value)}
             onBlur={() => void lookupSerial(serialNumber)}
           />
-        </div>
-
-        <div className="scan-grid">
-          <div className="scan-panel">
-            <h2>Barcode / QR</h2>
-            <video
-              ref={videoRef}
-              className={isScanning ? "scanner-video" : "scanner-video hidden"}
-            />
-            <div className="button-row">
-              <button type="button" onClick={startScanner} disabled={isScanning}>
-                {isScanning ? "Scanning..." : "Scan Barcode / QR"}
-              </button>
-              <button type="button" className="secondary" onClick={stopScanner}>
-                Stop Camera
-              </button>
-            </div>
-          </div>
-
-          <div className="scan-panel">
-            <h2>Photo OCR</h2>
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden-input"
-              onChange={handlePhotoUpload}
-            />
-            <div className="button-row">
-              <button
-                type="button"
-                onClick={() => photoInputRef.current?.click()}
-                disabled={isReadingPhoto}
-              >
-                {isReadingPhoto ? "Reading Photo..." : "Take Picture"}
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => void lookupSerial(serialNumber)}
-                disabled={isLookingUp}
-              >
-                {isLookingUp ? "Looking up..." : "Find Device"}
-              </button>
-            </div>
-            <p className="helper-text">
-              Read the box label if the barcode or QR code is not enough.
-            </p>
-          </div>
         </div>
 
         {matchedInventory ? (
@@ -425,13 +327,6 @@ export default function AssignDevice() {
 
         {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
         {statusMessage ? <p className="status-text">{statusMessage}</p> : null}
-
-        {ocrText ? (
-          <details className="ocr-details">
-            <summary>OCR text</summary>
-            <pre>{ocrText}</pre>
-          </details>
-        ) : null}
 
         <div className="button-row">
           <button type="button" className="assign-button" onClick={handleAssign} disabled={isAssigning}>
