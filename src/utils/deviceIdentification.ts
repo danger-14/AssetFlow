@@ -14,20 +14,54 @@ export function normalizeSerial(value: string): string {
 }
 
 export function extractSerialFromText(text: string): string {
-  const normalized = text.replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
-
-  const directPatterns = [
-    /\(\s*S\s*\)\s*SERIAL\s+NO\.?\s*[:\-]?\s*([A-Z0-9]{6,})\b/i,
-    /\bSERIAL\s+NO\.?\s*[:\-]?\s*([A-Z0-9]{6,})\b/i,
-    /\bSN[:\s-]*([A-Z0-9]{6,})\b/i,
-    /\bSERIAL(?:\s+NUMBER)?[:\s-]*([A-Z0-9]{6,})\b/i,
-  ];
-
-  for (const pattern of directPatterns) {
-    const match = normalized.match(pattern);
-    if (match?.[1]) {
-      return normalizeSerial(match[1]);
+    const normalized = text.replace(/\u00A0/g, " ");
+  
+    //
+    // PRIORITY 1
+    // Look ONLY after "(S) Serial No."
+    //
+    const serialSection = normalized.match(
+      /\(\s*S\s*\)\s*Serial\s*No\.?\s*([\s\S]{0,80})/i
+    );
+  
+    if (serialSection) {
+      const serialMatch = serialSection[1].match(/\b([A-Z0-9]{8,20})\b/i);
+  
+      if (serialMatch) {
+        return normalizeSerial(serialMatch[1]);
+      }
     }
+  
+    //
+    // PRIORITY 2
+    // Standard "Serial No."
+    //
+    const serialNo = normalized.match(
+      /Serial\s*No\.?\s*([\s\S]{0,80})/i
+    );
+  
+    if (serialNo) {
+      const serialMatch = serialNo[1].match(/\b([A-Z0-9]{8,20})\b/i);
+  
+      if (serialMatch) {
+        return normalizeSerial(serialMatch[1]);
+      }
+    }
+  
+    //
+    // PRIORITY 3
+    // SN:
+    //
+    const sn = normalized.match(/SN[:\s]*([A-Z0-9]{8,20})/i);
+  
+    if (sn) {
+      return normalizeSerial(sn[1]);
+    }
+  
+    //
+    // No fallback.
+    //
+    return "";
   }
 
   const candidates = normalized.match(/\b[A-Z0-9]{8,}\b/gi) ?? [];
