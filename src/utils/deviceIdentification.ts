@@ -14,18 +14,34 @@ export function normalizeSerial(value: string): string {
 }
 
 export function extractSerialFromText(text: string): string {
-  const normalized = text.replace(/\u00A0/g, " ");
+  const lines = text
+    .replace(/\u00A0/g, " ")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
 
-  const patterns = [
+  const labelPatterns = [
     /\(\s*S\s*\)\s*Serial\s*No\.?\s*[:\-]?\s*([A-Z0-9]{6,20})\b/i,
     /\bSerial\s*No\.?\s*[:\-]?\s*([A-Z0-9]{6,20})\b/i,
     /\bSN[:\s-]*([A-Z0-9]{6,20})\b/i,
   ];
 
-  for (const pattern of patterns) {
-    const match = normalized.match(pattern);
-    if (match?.[1]) {
-      return normalizeSerial(match[1]);
+  for (const line of lines) {
+    for (const pattern of labelPatterns) {
+      const match = line.match(pattern);
+      if (match?.[1]) {
+        return normalizeSerial(match[1]);
+      }
+    }
+  }
+
+  for (let i = 0; i < lines.length; i += 1) {
+    if (/\(\s*S\s*\)\s*Serial\s*No\.?/i.test(lines[i])) {
+      const nextLine = lines[i + 1] ?? "";
+      const nextMatch = nextLine.match(/\b([A-Z0-9]{6,20})\b/i);
+      if (nextMatch?.[1]) {
+        return normalizeSerial(nextMatch[1]);
+      }
     }
   }
 
