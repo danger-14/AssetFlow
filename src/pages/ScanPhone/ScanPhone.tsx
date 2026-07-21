@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BrowserMultiFormatReader } from "@zxing/browser";
+import { BarcodeFormat, BrowserMultiFormatReader } from "@zxing/browser";
 import Tesseract from "tesseract.js";
 import { useParams } from "react-router-dom";
 
@@ -19,15 +19,10 @@ export default function ScanPhone() {
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
 
-  const stopScanner = () => {
-    controlsRef.current?.stop();
-    controlsRef.current = null;
-    setIsScanning(false);
-  };
-
   useEffect(() => {
     return () => {
-      stopScanner();
+      controlsRef.current?.stop();
+      controlsRef.current = null;
     };
   }, []);
 
@@ -56,39 +51,57 @@ export default function ScanPhone() {
   const startScanner = async () => {
     setErrorMessage("");
     setStatusMessage("");
+    setOcrText("");
 
     if (!videoRef.current) {
       setErrorMessage("Camera is not ready yet.");
       return;
     }
 
-    stopScanner();
+    controlsRef.current?.stop();
+    controlsRef.current = null;
+
     setIsScanning(true);
 
     const reader = new BrowserMultiFormatReader();
+    reader.possibleFormats = [
+      BarcodeFormat.CODE_128,
+      BarcodeFormat.CODE_39,
+      BarcodeFormat.QR_CODE,
+    ];
 
     try {
-      await reader.decodeFromVideoDevice(
+      const controls = await reader.decodeOnceFromVideoDevice(
         undefined,
         videoRef.current,
-        (result, error, controls) => {
-          controlsRef.current = controls ?? null;
-
+        async (result, error) => {
           if (result) {
-            stopScanner();
-            void submitSerial(result.getText());
+            controls.stop();
+            setIsScanning(false);
+            await submitSerial(result.getText());
             return;
           }
 
-          if (error && !(error instanceof Error && error.name === "NotFoundException")) {
+          if (
+            error &&
+            !(error instanceof Error && error.name === "NotFoundException")
+          ) {
             setErrorMessage("Could not read the barcode or QR code.");
           }
         }
       );
+
+      controlsRef.current = controls;
     } catch {
       setErrorMessage("Could not start the camera.");
-      stopScanner();
+      setIsScanning(false);
     }
+  };
+
+  const stopScanner = () => {
+    controlsRef.current?.stop();
+    controlsRef.current = null;
+    setIsScanning(false);
   };
 
   const handlePhotoUpload = async (
