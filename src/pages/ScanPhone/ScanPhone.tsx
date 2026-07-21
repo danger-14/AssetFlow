@@ -1,28 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { BarcodeFormat, BrowserMultiFormatReader } from "@zxing/browser";
-import Tesseract from "tesseract.js";
 import { useParams } from "react-router-dom";
 
 import { completeScanSession } from "../../services/scanSessions";
-import { extractSerialFromText } from "../../utils/deviceIdentification";
 import "./ScanPhone.css";
 
 export default function ScanPhone() {
   const { sessionId } = useParams();
   const [isScanning, setIsScanning] = useState(false);
-  const [isReadingPhoto, setIsReadingPhoto] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [ocrText, setOcrText] = useState("");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const photoInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    return () => {
-      setIsScanning(false);
-    };
-  }, []);
 
   const submitSerial = async (rawSerial: string) => {
     if (!sessionId) {
@@ -49,7 +38,6 @@ export default function ScanPhone() {
   const startScanner = async () => {
     setErrorMessage("");
     setStatusMessage("");
-    setOcrText("");
 
     if (!videoRef.current) {
       setErrorMessage("Camera is not ready yet.");
@@ -73,41 +61,9 @@ export default function ScanPhone() {
 
       await submitSerial(result.getText());
     } catch {
-      setErrorMessage("Could not read the barcode or QR code.");
+      setErrorMessage("Could not read the serial barcode.");
     } finally {
       setIsScanning(false);
-    }
-  };
-
-  const handlePhotoUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file) return;
-
-    setErrorMessage("");
-    setStatusMessage("");
-    setIsReadingPhoto(true);
-    setOcrText("");
-
-    try {
-      const result = await Tesseract.recognize(file, "eng");
-      const text = result.data.text ?? "";
-      setOcrText(text);
-
-      const detectedSerial = extractSerialFromText(text);
-
-      if (detectedSerial) {
-        await submitSerial(detectedSerial);
-      } else {
-        setErrorMessage("Could not find a serial number in the photo.");
-      }
-    } catch {
-      setErrorMessage("Could not read the photo.");
-    } finally {
-      setIsReadingPhoto(false);
     }
   };
 
@@ -122,54 +78,41 @@ export default function ScanPhone() {
       </header>
 
       <section className="scan-card">
-        <div className="scan-panel">
-          <h2>Scan Serial Number</h2>
-          <video
-            ref={videoRef}
-            className={isScanning ? "scanner-video" : "scanner-video hidden"}
-          />
+        <div className="scan-panel scan-panel-camera">
+          <div className="scan-panel-header">
+            <h2>Scan Serial Number</h2>
+            <p>Point your iPhone at the serial label and barcode.</p>
+          </div>
+
+          <div className={isScanning ? "camera-stage active" : "camera-stage"}>
+            <video
+              ref={videoRef}
+              className={isScanning ? "scanner-video active" : "scanner-video"}
+            />
+            <div className="scan-guide">
+              <div className="scan-guide-label">(S) Serial No.</div>
+            </div>
+          </div>
+
+          <div className="scan-instructions">
+            <p>Keep the barcode centered inside the guide.</p>
+            <p>The scan stops automatically when it finds the serial.</p>
+          </div>
+
           <div className="button-row">
             <button
               type="button"
               onClick={startScanner}
               disabled={isScanning}
+              className="primary-scan-button"
             >
               {isScanning ? "Scanning..." : "📷 Scan Serial Number"}
             </button>
           </div>
         </div>
 
-        <div className="scan-panel">
-          <h2>Photo OCR</h2>
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden-input"
-            onChange={handlePhotoUpload}
-          />
-          <div className="button-row">
-            <button
-              type="button"
-              onClick={() => photoInputRef.current?.click()}
-              disabled={isReadingPhoto}
-            >
-              {isReadingPhoto ? "Reading Photo..." : "Take Picture"}
-            </button>
-          </div>
-          <p className="helper-text">Use this if the barcode is hard to scan.</p>
-        </div>
-
         {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
         {statusMessage ? <p className="status-text">{statusMessage}</p> : null}
-
-        {ocrText ? (
-          <details className="ocr-details">
-            <summary>OCR text</summary>
-            <pre>{ocrText}</pre>
-          </details>
-        ) : null}
       </section>
     </main>
   );
