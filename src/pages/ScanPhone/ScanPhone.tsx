@@ -6,7 +6,14 @@ import { completeScanSession } from "../../services/scanSessions";
 import { extractSerialFromText } from "../../utils/deviceIdentification";
 import "./ScanPhone.css";
 
-type BarcodeCandidate = { rawValue?: string | null };
+const SCAN_TIMEOUT_MS = 60000;
+const SCAN_INTERVAL_MS = 220;
+const OCR_INTERVAL_MS = 1800;
+
+type DetectedSerialState = {
+  serial: string;
+  source: "barcode" | "ocr";
+};
 
 function createGuideCropCanvas(
   video: HTMLVideoElement,
@@ -58,7 +65,6 @@ function createGuideCropCanvas(
   }
 
   ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
-
   return canvas;
 }
 
@@ -67,6 +73,9 @@ export default function ScanPhone() {
   const [isScanning, setIsScanning] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [detectedSerial, setDetectedSerial] = useState<DetectedSerialState | null>(
+    null
+  );
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -74,9 +83,45 @@ export default function ScanPhone() {
 
   const streamRef = useRef<MediaStream | null>(null);
   const detectorRef = useRef<any>(null);
-  const scanTimerRef = useRef<number | null>(null);
-  const scanAttemptsRef = useRef(0);
+  const scanIntervalRef = useRef<number | null>(null);
+  const timeoutRef = useRef<number | null>(null);
+  const lastOcrAttemptRef = useRef(0);
   const scanningRef = useRef(false);
+
+  const clearTimers = () => {
+    if (scanIntervalRef.current !== null) {
+      window.clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+
+    if (timeoutRef.current !== null) {
+      window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
+  const stopScanner = () => {
+    scanningRef.current = false;
+    setIsScanning(false);
+    clearTimers();
+
+    detectorRef.current = null;
+    lastOcrAttemptRef.current = 0;
+
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopScanner();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const submitSerial = async (rawSerial: string) => {
     if (!sessionId) {
@@ -100,112 +145,57 @@ export default function ScanPhone() {
     setStatusMessage("Serial sent successfully.");
   };
 
-  const stopScanner = () => {
-    scanningRef.current = false;
-    setIsScanning(false);
-
-    if (scanTimerRef.current !== null) {
-      window.clearTimeout(scanTimerRef.current);
-      scanTimerRef.current = null;
-    }
-
-    detectorRef.current = null;
-    scanAttemptsRef.current = 0;
-
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      stopScanner();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const scheduleNextScan = () => {
-    if (!scanningRef.current) return;
-
-    scanTimerRef.current = window.setTimeout(() => {
-      void scanFrame();
-    }, 180);
-  };
-
-  const scanFrame = async () => {
-    if (!scanningRef.current) return;
-
+  const detectFromCrop = async () => {
     const video = videoRef.current;
     const stage = stageRef.current;
     const guide = guideRef.current;
 
-    if (
-      !video ||
-      !stage ||
-      !guide ||
-      video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
-    ) {
-      scheduleNextScan();
-      return;
-    }
+    if (!video || !stage || !guide) return;
 
     const cropCanvas = createGuideCropCanvas(video, stage, guide);
-
-    if (!cropCanvas) {
-      scheduleNextScan();
-      return;
-    }
+    if (!cropCanvas) return;
 
     const detector: any = detectorRef.current;
 
     if (detector) {
       try {
-        const results: BarcodeCandidate[] = await detector.detect(cropCanvas);
+        const results = await detector.detect(cropCanvas);
         const rawValue = results[0]?.rawValue ?? "";
-
         if (rawValue) {
-          await submitSerial(rawValue);
+          const serial = rawValue.trim().toUpperCase().replace(/\s+/g, "");
+          setDetectedSerial({ serial, source: "barcode" });
+          setStatusMessage("Serial detected. Tap Use Serial to confirm.");
           stopScanner();
           return;
         }
       } catch {
-        // ignore and continue
+        // keep trying
       }
     }
 
-    scanAttemptsRef.current += 1;
+    const now = Date.now();
+    if (now - lastOcrAttemptRef.current < OCR_INTERVAL_MS) return;
+    lastOcrAttemptRef.current = now;
 
-    if (scanAttemptsRef.current >= 10) {
-      try {
-        const result = await Tesseract.recognize(cropCanvas, "eng");
-        const text = result.data.text ?? "";
-        const serial = extractSerialFromText(text);
+    try {
+      const result = await Tesseract.recognize(cropCanvas, "eng");
+      const text = result.data.text ?? "";
+      const serial = extractSerialFromText(text);
 
-        if (serial) {
-          await submitSerial(serial);
-          stopScanner();
-          return;
-        }
-      } catch {
-        // ignore and fall through to error
+      if (serial) {
+        setDetectedSerial({ serial, source: "ocr" });
+        setStatusMessage("Serial detected. Tap Use Serial to confirm.");
+        stopScanner();
       }
-
-      setErrorMessage(
-        "Serial number not detected. Please align the label inside the guide."
-      );
-      stopScanner();
-      return;
+    } catch {
+      // keep trying
     }
-
-    scheduleNextScan();
   };
 
   const startScanner = async () => {
     setErrorMessage("");
     setStatusMessage("");
+    setDetectedSerial(null);
 
     if (!videoRef.current) {
       setErrorMessage("Camera is not ready yet.");
@@ -215,6 +205,7 @@ export default function ScanPhone() {
     stopScanner();
     scanningRef.current = true;
     setIsScanning(true);
+    setStatusMessage("Align the serial label inside the guide.");
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -238,12 +229,34 @@ export default function ScanPhone() {
           })
         : null;
 
-      scanAttemptsRef.current = 0;
-      await scanFrame();
+      scanIntervalRef.current = window.setInterval(() => {
+        if (!scanningRef.current) return;
+        void detectFromCrop();
+      }, SCAN_INTERVAL_MS);
+
+      timeoutRef.current = window.setTimeout(() => {
+        if (!scanningRef.current) return;
+        setErrorMessage(
+          "Serial number not detected. Please align the label inside the guide."
+        );
+        stopScanner();
+      }, SCAN_TIMEOUT_MS);
     } catch {
       setErrorMessage("Could not start the camera.");
       stopScanner();
     }
+  };
+
+  const useDetectedSerial = async () => {
+    if (!detectedSerial) return;
+    await submitSerial(detectedSerial.serial);
+  };
+
+  const keepScanning = () => {
+    setDetectedSerial(null);
+    setErrorMessage("");
+    setStatusMessage("");
+    void startScanner();
   };
 
   return (
@@ -280,7 +293,7 @@ export default function ScanPhone() {
 
           <div className="scan-instructions">
             <p>Keep the barcode centered inside the guide.</p>
-            <p>The scan stops automatically when it finds the serial.</p>
+            <p>The scan will wait longer before timing out.</p>
           </div>
 
           <div className="button-row">
@@ -294,6 +307,28 @@ export default function ScanPhone() {
             </button>
           </div>
         </div>
+
+        {detectedSerial ? (
+          <div className="scan-panel">
+            <div className="scan-panel-header">
+              <h2>Serial Detected</h2>
+              <p>Review the serial before sending it back to AssetFlow.</p>
+            </div>
+
+            <p className="helper-text">
+              <strong>{detectedSerial.serial}</strong>
+            </p>
+
+            <div className="button-row">
+              <button type="button" onClick={useDetectedSerial}>
+                Use Serial
+              </button>
+              <button type="button" className="secondary" onClick={keepScanning}>
+                Keep Scanning
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
         {statusMessage ? <p className="status-text">{statusMessage}</p> : null}
